@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EzEv - Smart EV Charging & Route Planning Platform</title>
+  
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  
+  <style>
+    :root {
+      --bright-snow: #FAFAFA;
+      --pale-slate: #D2D7DF;
+      --dusk-blue: #2E5077;
+      --deep-navy: #00003D;
+      --coffee-bean: #14010B;
+      --success-green: #10B981;
+      --warning-orange: #F59E0B;
+      --text-dark: #0a0a0a; 
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bright-snow);
+      color: var(--text-dark);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* Grid Background */
+    .grid-bg {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background-image: 
+        linear-gradient(var(--pale-slate) 1px, transparent 1px),
+        linear-gradient(90deg, var(--pale-slate) 1px, transparent 1px);
+      background-size: 30px 30px; opacity: 0.2; z-index: -1;
+    }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+    /* 1. HEADER */
+    .header {
+      background: rgba(255, 255, 255, 0.98);
+      backdrop-filter: blur(10px);
+      padding: 15px 0; position: sticky; top: 0; z-index: 1000;
+      border-bottom: 1px solid var(--pale-slate);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    .nav-container { display: flex; justify-content: space-between; align-items: center; }
+    
+    .logo { display: flex; align-items: center; text-decoration: none; transition: transform 0.3s ease; }
+    .logo:hover { transform: scale(1.05); }
+    .logo-img { height: 60px; width: auto; mix-blend-mode: multiply; }
+
+    .nav-menu { display: flex; list-style: none; gap: 35px; align-items: center; }
+    .nav-link { text-decoration: none; color: #000; font-weight: 600; transition: color 0.3s; font-size: 1rem; }
+    .nav-link:hover { color: var(--dusk-blue); }
+
+    .btn { padding: 12px 28px; border: none; border-radius: 12px; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: all 0.3s ease; text-decoration: none; display: inline-block; }
+    .btn-primary { background: linear-gradient(135deg, var(--dusk-blue), var(--deep-navy)); color: white; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(46, 80, 119, 0.3); }
+    .btn-secondary { background: transparent; color: var(--dusk-blue); border: 2px solid var(--dusk-blue); }
+    .btn-secondary:hover { background: var(--dusk-blue); color: white; }
+
+    /* Mobile Menu */
+    .menu-toggle { display: none; flex-direction: column; gap: 4px; cursor: pointer; }
+    .menu-toggle span { width: 25px; height: 3px; background: var(--coffee-bean); border-radius: 2px; transition: all 0.3s; }
+
+    /* 2. HERO SECTION */
+    .hero { padding: 120px 0 80px; text-align: left; }
+    .hero-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; }
+    .hero-content h1 { font-size: 4.5rem; color: #000; line-height: 1.1; margin-bottom: 24px; font-weight: 800; }
+    .hero-content .subtitle { font-size: 1.35rem; color: #444; margin-bottom: 40px; line-height: 1.6; font-weight: 500; }
+    .cta-buttons { display: flex; gap: 16px; margin-bottom: 40px; }
+    .trust-badges { display: flex; align-items: center; gap: 30px; color: var(--dusk-blue); font-size: 0.9rem; }
+    .trust-badges span { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+
+    /* HERO MAP & FLOATING TABS CSS */
+    .hero-image-container {
+      position: relative;
+      background: #e5e7eb;
+      border-radius: 40px;
+      height: 500px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    }
+
+    #home-map {
+      width: 100%;
+      height: 100%;
+      border-radius: 40px;
+      z-index: 1; 
+    }
+
+    .floating-ui {
+      position: absolute; 
+      background: white; 
+      padding: 12px 18px; 
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.15); 
+      display: flex; 
+      align-items: center; 
+      gap: 10px;
+      font-size: 0.85rem; 
+      font-weight: 700; 
+      color: #000;
+      animation: float 4s ease-in-out infinite;
+      z-index: 100;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    @keyframes float { 
+      0%, 100% { transform: translateY(0); } 
+      50% { transform: translateY(-15px); } 
+    }
+
+    /* 3. SOCIAL PROOF */
+    .social-proof { padding: 60px 0; text-align: center; border-top: 1px solid var(--pale-slate); border-bottom: 1px solid var(--pale-slate); }
+    .social-proof h3 { font-size: 0.9rem; color: var(--dusk-blue); margin-bottom: 30px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+    .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 50px; }
+    .stat-number { font-size: 3rem; font-weight: 800; color: var(--dusk-blue); margin-bottom: 8px; }
+    .stat-label { color: #000; font-size: 1rem; font-weight: 600; }
+
+    /* 4. FEATURES */
+    .features-section { padding: 100px 0; }
+    .section-header { text-align: center; margin-bottom: 70px; }
+    .section-header h2 { font-size: 3rem; color: #000; margin-bottom: 16px; font-weight: 800; }
+    .section-header p { font-size: 1.2rem; color: var(--dusk-blue); }
+    
+    .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; }
+    .feature-card { padding: 50px 35px; border-radius: 24px; text-align: center; transition: all 0.3s ease; color: white; display: flex; flex-direction: column; align-items: center; gap: 20px; cursor: pointer; }
+    .feature-card.blue { background-color: var(--dusk-blue); }
+    .feature-card.slate { background-color: var(--pale-slate); color: var(--deep-navy); }
+    .feature-card.navy { background-color: var(--deep-navy); }
+    .feature-card:hover { transform: translateY(-10px); box-shadow: 0 20px 40px rgba(0,0,0,0.15); }
+    .feature-card h3 { font-size: 1.5rem; font-weight: 700; }
+    .feature-card p { font-weight: 500; }
+    .icon-box { font-size: 3.5rem; margin-bottom: 10px; }
+
+    /* 5. HOW IT WORKS */
+    .how-it-works { padding: 100px 0; background: linear-gradient(135deg, rgba(46, 80, 119, 0.05), rgba(0, 0, 61, 0.05)); }
+    .steps-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 50px; margin-top: 60px; }
+    .step-card { text-align: center; }
+    .step-card h3 { font-weight: 700; color: #000; margin-bottom: 10px;}
+    .step-card p { color: #444; font-weight: 500;}
+    .step-number { width: 70px; height: 70px; background: linear-gradient(135deg, var(--dusk-blue), var(--deep-navy)); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 800; margin: 0 auto 30px; }
+
+    /* 6. SHOWCASE - UPDATED FOR FIX */
+    .product-showcase { padding: 100px 0; }
+    .showcase-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; margin-top: 60px; }
+    
+    /* FIX APPLIED HERE */
+    .showcase-image { 
+      background: linear-gradient(135deg, var(--dusk-blue), var(--deep-navy)); 
+      border-radius: 24px; 
+      /* Reduced padding from 40px to 15px so image is bigger */
+      padding: 15px; 
+      /* Removed fixed height (450px) so it hugs the image size */
+      height: auto; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      color: white; 
+      font-size: 1.2rem; 
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15); 
+    }
+    
+    .showcase-content h3 { font-size: 2rem; color: var(--coffee-bean); margin-bottom: 24px; }
+    .showcase-features { list-style: none; margin-bottom: 30px; }
+    .showcase-features li { padding: 16px 0; border-bottom: 1px solid var(--pale-slate); display: flex; align-items: center; gap: 16px; color: #000; font-weight: 500; }
+    .checkmark { width: 24px; height: 24px; background: var(--success-green); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; flex-shrink: 0; }
+
+    /* 7. TESTIMONIALS */
+    .testimonials { padding: 100px 0; background: var(--pale-slate); }
+    .testimonials-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 35px; margin-top: 60px; }
+    .testimonial-card { background: white; padding: 35px; border-radius: 20px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); transition: transform 0.3s; }
+    .testimonial-card:hover { transform: translateY(-5px); }
+    .stars { color: var(--warning-orange); font-size: 1.2rem; margin-bottom: 16px; }
+    .testimonial-text { color: #333; font-style: italic; font-weight: 500; margin-bottom: 24px; line-height: 1.7; }
+    .testimonial-author { display: flex; align-items: center; gap: 16px; }
+    .author-avatar { width: 50px; height: 50px; background: linear-gradient(135deg, var(--dusk-blue), var(--deep-navy)); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 1.1rem; }
+    .author-info h4 { color: var(--coffee-bean); font-size: 0.95rem; margin-bottom: 4px; }
+    .author-info p { color: var(--dusk-blue); font-size: 0.85rem; }
+
+    /* 8. PRICING */
+    .pricing { padding: 100px 0; }
+    .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 35px; margin-top: 60px; }
+    .pricing-card { background: white; border: 2px solid var(--pale-slate); border-radius: 24px; padding: 45px 35px; text-align: center; transition: all 0.3s; position: relative; }
+    .pricing-card.featured { border-color: var(--dusk-blue); transform: scale(1.05); box-shadow: 0 20px 40px rgba(46, 80, 119, 0.15); }
+    .pricing-badge { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); background: var(--dusk-blue); color: white; padding: 6px 20px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; }
+    .price { font-size: 3.5rem; font-weight: 800; color: var(--dusk-blue); margin-bottom: 8px; }
+    .price-period { color: var(--dusk-blue); font-size: 0.95rem; margin-bottom: 30px; }
+    .pricing-features { list-style: none; margin-bottom: 35px; text-align: left; }
+    .pricing-features li { padding: 12px 0; color: #000; font-weight: 500; display: flex; align-items: center; gap: 12px; }
+    .pricing-features li::before { content: "✓"; color: var(--success-green); font-weight: 700; font-size: 1.2rem; }
+
+    /* 9. CONTACT */
+    .contact { padding: 100px 0; background: var(--bright-snow); }
+    .contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; margin-top: 60px; align-items: start; }
+    .contact-info h3 { font-size: 1.8rem; color: var(--coffee-bean); margin-bottom: 24px; }
+    .contact-info p { color: var(--dusk-blue); font-size: 1.1rem; line-height: 1.8; margin-bottom: 40px; }
+    .contact-methods { display: flex; flex-direction: column; gap: 24px; }
+    .contact-method { display: flex; align-items: center; gap: 20px; padding: 20px; background: white; border-radius: 12px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); transition: all 0.3s ease; }
+    .contact-method:hover { transform: translateX(5px); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); }
+    .contact-icon { width: 50px; height: 50px; background: linear-gradient(135deg, var(--dusk-blue), var(--deep-navy)); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: white; flex-shrink: 0; }
+    .contact-details h4 { font-size: 1rem; color: var(--coffee-bean); margin-bottom: 4px; }
+    .contact-details a { color: var(--dusk-blue); text-decoration: none; transition: color 0.3s; }
+    
+    .contact-form { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); }
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: var(--coffee-bean); }
+    .form-group input, .form-group textarea { width: 100%; padding: 14px 16px; border: 2px solid var(--pale-slate); border-radius: 12px; font-size: 0.95rem; font-family: inherit; transition: all 0.3s ease; background: var(--bright-snow); color: #000; }
+    .form-group input:focus, .form-group textarea:focus { outline: none; border-color: var(--dusk-blue); background: white; }
+    .form-group textarea { resize: vertical; min-height: 120px; }
+    .submit-btn { width: 100%; padding: 16px; background: linear-gradient(135deg, var(--dusk-blue), var(--deep-navy)); color: white; border: none; border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
+    .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(46, 80, 119, 0.3); }
+
+    /* 10. FINAL CTA */
+    .final-cta { padding: 120px 0; text-align: center; background: linear-gradient(135deg, var(--dusk-blue), var(--deep-navy)); color: white; }
+    .final-cta h2 { font-size: 3.5rem; margin-bottom: 20px; font-weight: 800; }
+    .final-cta p { font-size: 1.3rem; margin-bottom: 50px; opacity: 0.95; }
+    .final-cta .btn-primary { background: white; color: var(--dusk-blue); padding: 18px 45px; font-size: 1.1rem; }
+    .cta-note { margin-top: 20px; font-size: 0.9rem; opacity: 0.8; }
+
+    /* 11. FOOTER */
+    .footer { background-color: var(--deep-navy); color: var(--bright-snow); padding: 70px 0 30px; }
+    .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 50px; margin-bottom: 50px; }
+    .footer-column h4 { margin-bottom: 24px; font-size: 1.1rem; }
+    .footer-links { list-style: none; }
+    .footer-links li { margin-bottom: 12px; }
+    .footer-links a { color: rgba(255, 255, 255, 0.85); text-decoration: none; font-size: 0.95rem; transition: color 0.3s; font-weight: 500; }
+    .footer-links a:hover { color: white; text-decoration: underline; }
+    .footer-bottom { border-top: 1px solid rgba(255, 255, 255, 0.2); padding-top: 30px; text-align: center; color: rgba(255, 255, 255, 0.7); font-size: 0.9rem; }
+
+    /* RESPONSIVE */
+    @media (max-width: 1024px) {
+      .hero-content h1 { font-size: 3.5rem; }
+      .features-grid, .testimonials-grid, .pricing-grid, .showcase-grid, .hero-grid, .footer-grid, .contact-grid { grid-template-columns: 1fr; }
+      .hero-image-container { height: 400px; }
+    }
+    @media (max-width: 768px) {
+      .nav-menu { position: fixed; top: 80px; left: -100%; width: 100%; height: calc(100vh - 80px); background: white; flex-direction: column; padding: 40px; transition: left 0.3s; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); }
+      .nav-menu.active { left: 0; }
+      .menu-toggle { display: flex; }
+      .hero-content h1 { font-size: 2.5rem; }
+      .section-header h2 { font-size: 2rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="grid-bg"></div>
+
+  <header class="header">
+    <div class="container">
+      <nav class="nav-container">
+        <a href="#" class="logo">
+          <img src="ezev-logo.png" alt="EzEv Logo" class="logo-img">
+        </a>
+
+        <ul class="nav-menu" id="navMenu">
+          <li><a href="#features" class="nav-link">Features</a></li>
+          <li><a href="#how-it-works" class="nav-link">How It Works</a></li>
+          <li><a href="#pricing" class="nav-link">Pricing</a></li>
+          <li><a href="#testimonials" class="nav-link">Testimonials</a></li>
+          <li><a href="#contact" class="nav-link">Contact</a></li>
+          <li><a href="Login.jsp" class="btn btn-secondary">Login</a></li>
+          <li><a href="Register.jsp" class="btn btn-primary">Get Started</a></li>
+        </ul>
+
+        <div class="menu-toggle" id="menuToggle">
+          <span></span><span></span><span></span>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="container">
+      <div class="hero-grid">
+        <div class="hero-content">
+          <h1>Elevate Your EV Journey.</h1>
+          <p class="subtitle">The all-in-one platform for smart EV charging and route planning across India. Find stations, book slots, and earn rewards—seamlessly.</p>
+
+          <div class="cta-buttons">
+            <a href="Register.jsp" class="btn btn-primary">Find Chargers Now</a>
+            <a href="#how-it-works" class="btn btn-secondary">Watch Demo</a>
+          </div>
+
+          <div class="trust-badges">
+            <span>⚡ 500+ Stations</span>
+            <span>🌟 10K+ Users</span>
+            <span>📍 50+ Cities</span>
+          </div>
+        </div>
+
+        <div class="hero-image-container">
+          <div class="floating-ui" style="top: 10%; left: 5%;">
+            <span style="color: var(--success-green);">●</span> Station Found: Charger Available
+          </div>
+          <div class="floating-ui" style="bottom: 15%; right: 5%; animation-delay: 1s;">
+            <span style="color: var(--warning-orange);">⚡</span> Route Updated: Optimal Stops
+          </div>
+          <div class="floating-ui" style="top: 45%; right: -5%; animation-delay: 2s;">
+            <span style="color: var(--dusk-blue);">📍</span> 2.3 km away
+          </div>
+          
+          <div id="home-map"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="social-proof">
+    <div class="container">
+      <h3>Trusted by India's Leading EV Community</h3>
+      <div class="stats-row">
+        <div class="stat-item"><div class="stat-number">500+</div><div class="stat-label">Charging Stations</div></div>
+        <div class="stat-item"><div class="stat-number">10,000+</div><div class="stat-label">Active Users</div></div>
+        <div class="stat-item"><div class="stat-number">50+</div><div class="stat-label">Cities Covered</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="features-section" id="features">
+    <div class="container">
+      <div class="section-header">
+        <h2>Why Choose EzEv?</h2>
+        <p>Everything you need for seamless EV charging</p>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card blue"><div class="icon-box">🔍</div><h3>Real-Time Availability</h3><p>Check live charger status before you drive. Never wait in queues again.</p></div>
+        <div class="feature-card slate"><div class="icon-box">🗺️</div><h3>Smart Route Planning</h3><p>Plan long trips with optimal charging stops. Save time and energy on every journey.</p></div>
+        <div class="feature-card navy"><div class="icon-box">📅</div><h3>Easy Booking</h3><p>Reserve chargers in advance. Skip the wait with guaranteed time slots.</p></div>
+        <div class="feature-card navy"><div class="icon-box">🎁</div><h3>Rewards Program</h3><p>Earn points for every charge. Redeem for free coffee, discounts & more.</p></div>
+        <div class="feature-card blue"><div class="icon-box">💳</div><h3>Seamless Payments</h3><p>Pay securely with UPI, cards, or wallets. Track all expenses in one place.</p></div>
+        <div class="feature-card slate"><div class="icon-box">📊</div><h3>Usage Analytics</h3><p>Monitor charging patterns, costs, and carbon savings with detailed insights.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="how-it-works" id="how-it-works">
+    <div class="container">
+      <div class="section-header"><h2>How It Works</h2><p>Get started in 3 simple steps</p></div>
+      <div class="steps-grid">
+        <div class="step-card"><div class="step-number">1</div><h3>Find Stations</h3><p>Search for charging stations near you or along your route. View real-time availability and pricing.</p></div>
+        <div class="step-card"><div class="step-number">2</div><h3>Book Your Slot</h3><p>Select your preferred time slot and reserve the charger. Get instant confirmation on your phone.</p></div>
+        <div class="step-card"><div class="step-number">3</div><h3>Charge & Earn</h3><p>Plug in and charge your EV. Earn reward points with every session for future benefits.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="product-showcase">
+    <div class="container">
+      <div class="section-header"><h2>Powerful Features for EV Drivers</h2><p>Everything you need in one intuitive platform</p></div>
+      <div class="showcase-grid">
+        <div class="showcase-image">
+           <img src="dashboard.png" alt="EzEv Dashboard Preview" style="width: 100%; height: auto; border-radius: 12px; display: block; box-shadow: 0 5px 15px rgba(0,0,0,0.2);">
+        </div>
+        
+        <div class="showcase-content">
+          <h3>Complete Charging Management</h3>
+          <ul class="showcase-features">
+            <li><span class="checkmark">✓</span> Live charger availability across 500+ stations</li>
+            <li><span class="checkmark">✓</span> Intelligent route planning with charging stops</li>
+            <li><span class="checkmark">✓</span> Advanced booking with guaranteed slots</li>
+            <li><span class="checkmark">✓</span> Integrated payment with digital wallets</li>
+            <li><span class="checkmark">✓</span> Points-based rewards on every charge</li>
+            <li><span class="checkmark">✓</span> Detailed usage analytics and reports</li>
+          </ul>
+          <a href="Register.jsp" class="btn btn-primary">Explore Features</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="testimonials" id="testimonials">
+    <div class="container">
+      <div class="section-header"><h2>What Our Users Say</h2><p>Join thousands of satisfied EV drivers</p></div>
+      <div class="testimonials-grid">
+        <div class="testimonial-card"><div class="stars">⭐⭐⭐⭐⭐</div><p class="testimonial-text">"EzEv completely changed how I plan my road trips. The route planner saved me 2 hours on my Delhi-Agra journey!"</p><div class="testimonial-author"><div class="author-avatar">AK</div><div class="author-info"><h4>Arjun Kumar</h4><p>Tesla Model 3 Owner</p></div></div></div>
+        <div class="testimonial-card"><div class="stars">⭐⭐⭐⭐⭐</div><p class="testimonial-text">"The booking feature is a game-changer. No more waiting in long queues at charging stations. Highly recommend!"</p><div class="testimonial-author"><div class="author-avatar">PM</div><div class="author-info"><h4>Priya Mehta</h4><p>Tata Nexon EV Driver</p></div></div></div>
+        <div class="testimonial-card"><div class="stars">⭐⭐⭐⭐⭐</div><p class="testimonial-text">"Love the rewards program! Already redeemed points for 3 free coffees. The app is super intuitive and reliable."</p><div class="testimonial-author"><div class="author-avatar">RS</div><div class="author-info"><h4>Rajesh Sharma</h4><p>MG ZS EV Owner</p></div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pricing" id="pricing">
+    <div class="container">
+      <div class="section-header"><h2>Choose Your Plan</h2><p>Flexible pricing for every EV driver</p></div>
+      <div class="pricing-grid">
+        <div class="pricing-card"><h3>Free</h3><div class="price">₹0</div><div class="price-period">Forever free</div><ul class="pricing-features"><li>Search charging stations</li><li>View real-time availability</li><li>Basic route planning</li></ul><a href="Register.jsp" class="btn btn-secondary" style="width: 100%;">Get Started</a></div>
+        <div class="pricing-card featured"><div class="pricing-badge">Most Popular</div><h3>Pro</h3><div class="price">₹299</div><div class="price-period">per month</div><ul class="pricing-features"><li>Everything in Free</li><li>Advanced booking</li><li>2x reward points</li><li>Charging analytics</li></ul><a href="Register.jsp" class="btn btn-primary" style="width: 100%;">Start Free Trial</a></div>
+        <div class="pricing-card"><h3>Premium</h3><div class="price">₹999</div><div class="price-period">per month</div><ul class="pricing-features"><li>Everything in Pro</li><li>VIP station access</li><li>5x reward points</li><li>Concierge support</li></ul><a href="#contact" class="btn btn-secondary" style="width: 100%;">Contact Sales</a></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="contact" id="contact">
+    <div class="container">
+      <div class="section-header"><h2>Get In Touch</h2><p>Have questions? We'd love to hear from you. Send us a message!</p></div>
+      <div class="contact-grid">
+        <div class="contact-info">
+          <h3>Let's Connect</h3><p>Whether you have a question about features, pricing, need a demo, or anything else, our team is ready to answer all your questions.</p>
+          <div class="contact-methods">
+            <div class="contact-method"><div class="contact-icon">📧</div><div class="contact-details"><h4>Email Us</h4><p><a href="mailto:support@ezev.in">support@ezev.in</a></p></div></div>
+            <div class="contact-method"><div class="contact-icon">📞</div><div class="contact-details"><h4>Call Us</h4><p><a href="tel:+911234567890">+91 123 456 7890</a></p></div></div>
+            <div class="contact-method"><div class="contact-icon">📍</div><div class="contact-details"><h4>Visit Us</h4><p>123 EV Street, Tech Park<br>Bangalore, Karnataka 560001</p></div></div>
+          </div>
+        </div>
+        <div class="contact-form">
+          <form id="contactForm">
+            <div class="form-group"><label>Name</label><input type="text" placeholder="John Doe" required></div>
+            <div class="form-group"><label>Email</label><input type="email" placeholder="john@example.com" required></div>
+            <div class="form-group"><label>Message</label><textarea placeholder="How can we help?" required></textarea></div>
+            <button type="submit" class="submit-btn">Send Message</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="final-cta">
+    <div class="container">
+      <h2>Ready to Elevate Your EV Journey?</h2>
+      <p>Join 10,000+ happy EV drivers who are charging smarter</p>
+      <a href="Register.jsp" class="btn btn-primary">Get Started Free</a>
+      <p class="cta-note">No credit card required • Cancel anytime • 14-day free trial</p>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-column">
+          <div style="margin-bottom: 20px;"><img src="ezev-logo.png" alt="EzEv Logo" style="height: 50px; opacity: 0.8;"></div>
+          <p style="color: rgba(250,250,250,0.7);">Making EV charging easy and accessible for everyone across India.</p>
+        </div>
+        <div class="footer-column"><h4>Product</h4><ul class="footer-links"><li><a href="#">Features</a></li><li><a href="#">Pricing</a></li><li><a href="#">How It Works</a></li><li><a href="#">Mobile App</a></li></ul></div>
+        <div class="footer-column"><h4>Company</h4><ul class="footer-links"><li><a href="#">About Us</a></li><li><a href="#">Careers</a></li><li><a href="#">Blog</a></li><li><a href="#">Contact</a></li></ul></div>
+        <div class="footer-column"><h4>Legal</h4><ul class="footer-links"><li><a href="#">Privacy Policy</a></li><li><a href="#">Terms of Service</a></li><li><a href="#">Cookie Policy</a></li></ul></div>
+      </div>
+      <div class="footer-bottom"><p>&copy; 2026 EzEv. All rights reserved. Made with ⚡ for EV drivers in India.</p></div>
+    </div>
+  </footer>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // 1. Mobile Menu Toggle
+    const menuToggle = document.getElementById('menuToggle');
+    const navMenu = document.getElementById('navMenu');
+    menuToggle.addEventListener('click', () => { navMenu.classList.toggle('active'); });
+
+    // 2. HERO MAP INITIALIZATION
+    window.addEventListener('load', function() {
+        // Initialize map centered on Indore
+        var homeMap = L.map('home-map', {
+            zoomControl: false, 
+            scrollWheelZoom: false 
+        }).setView([22.7196, 75.8577], 12);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(homeMap);
+
+        // Custom Icon
+        var icon = L.icon({
+            iconUrl: 'https://cdn-icons-png.flaticon.com/512/2917/2917995.png',
+            iconSize: [35, 35],
+            iconAnchor: [17, 35]
+        });
+
+        // Demo Markers for Indore
+        L.marker([22.7533, 75.8937], {icon: icon}).addTo(homeMap).bindPopup("<b>Vijay Nagar Station</b><br>Available: 4/5");
+        L.marker([22.7196, 75.8777], {icon: icon}).addTo(homeMap).bindPopup("<b>TI Mall Hub</b><br>Available: 2/3");
+        L.marker([22.6926, 75.8676], {icon: icon}).addTo(homeMap).bindPopup("<b>Bhawarkua Fast Charge</b><br>Available: 1/2");
+    });
+
+    // 3. Contact Form Submission (Mock)
+    document.getElementById('contactForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const btn = this.querySelector('.submit-btn');
+      const originalText = btn.innerText;
+      
+      btn.innerText = 'Sending...';
+      btn.style.opacity = '0.7';
+      
+      setTimeout(() => {
+        alert('Thank you! Your message has been sent successfully.');
+        this.reset();
+        btn.innerText = originalText;
+        btn.style.opacity = '1';
+      }, 1500);
+    });
+  </script>
+</body>
+</html>

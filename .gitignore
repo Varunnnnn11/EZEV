@@ -1,0 +1,21 @@
+`
+
+
+# Secret files - never upload
+src/main/resources/hibernate.cfg.xml
+src/main/resources/config.properties
+
+# NetBeans build output
+build/
+dist/
+nbproject/private/
+
+# Maven
+target/
+
+# Compiled Java files
+*.class
+
+# Windows junk
+Thumbs.db
+.DS_Store
