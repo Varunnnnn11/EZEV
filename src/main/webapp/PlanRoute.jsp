@@ -165,11 +165,20 @@
 </head>
 <body>
 
-  <div class="container">
-    <div class="header">
-      <h1>🗺️ AI Route Planner</h1>
-      <p>Plan your EV journey with smart charging recommendations</p>
-    </div>
+<div class="header" style="display: flex; justify-content: space-between; align-items: center;">
+  <div>
+    <h1>🗺️ AI Route Planner</h1>
+    <p>Plan your EV journey with smart charging recommendations</p>
+  </div>
+  <a href="Dashboard.jsp" style="
+    display: inline-flex; align-items: center; gap: 6px;
+    color: var(--dusk-blue); text-decoration: none; font-weight: 600;
+    font-size: 0.95rem; transition: color 0.3s;
+  " onmouseover="this.style.color='var(--deep-navy)'"
+     onmouseout="this.style.color='var(--dusk-blue)'">
+    Back to Dashboard →
+  </a>
+</div>
 
     <div class="main-grid">
       
