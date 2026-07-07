@@ -1,0 +1,81 @@
+version: "3.8"
+services:
+  # ─────────────────────────────
+  # Container 1: MySQL Database
+  # ─────────────────────────────
+  mysql_db:
+    image: mysql:8.0
+    container_name: mysql-db
+    networks:
+      - ezev-app-nw
+    environment:
+      MYSQL_ROOT_PASSWORD: "1105"
+      MYSQL_DATABASE: "ezev_db"
+    ports:
+      - "3306:3306"
+    restart: always
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p1105"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ─────────────────────────────
+  # Container 2: Java/Tomcat App
+  # ─────────────────────────────
+  java_app:
+    build:
+      context: .
+    container_name: ezev_app
+    networks:
+      - ezev-app-nw
+    environment:
+      CONNECTION_URL: "jdbc:mysql://mysql-db:3306/ezev_db"
+      CONNECTION_USERNAME: "root"
+      CONNECTION_PASSWORD: "1105"
+    depends_on:
+      mysql_db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    restart: always
+    healthcheck:
+      # Hits Tomcat's root to check if app is running
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s   # Tomcat needs extra time to deploy WAR
+
+  # ─────────────────────────────
+  # Container 3: Nginx Frontend
+  # ─────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: ezev_nginx
+    networks:
+      - ezev-app-nw
+    ports:
+      - "80:80"
+    volumes:
+      - ./src/main/webapp/index.html:/usr/share/nginx/html/index.html
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      java_app:
+        condition: service_healthy   # Wait for Tomcat to be ready
+    restart: always
+    healthcheck:
+      # Hits Nginx to check if it's serving pages
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s   # Nginx starts very fast
+
+# ─────────────────────────────
+# Shared Network
+# ─────────────────────────────
+networks:
+  ezev-app-nw:
+    driver: bridge
